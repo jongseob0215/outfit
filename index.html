@@ -137,6 +137,9 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .look-body{min-width:0;display:flex;flex-direction:column;gap:10px}
 .lh{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
 .lh h3{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}
+.style{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.02em;padding:3px 9px;border-radius:999px;margin-bottom:5px;color:var(--sc);background:color-mix(in srgb,var(--sc) 14%,transparent)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .style{color:color-mix(in srgb,var(--sc) 45%,#fff);background:color-mix(in srgb,var(--sc) 35%,transparent)}}
+:root[data-theme="dark"] .style{color:color-mix(in srgb,var(--sc) 45%,#fff);background:color-mix(in srgb,var(--sc) 35%,transparent)}
 .lh .no{font-size:12px;color:var(--muted);font-weight:500}
 .badge{flex:none;font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;background:var(--chip);color:var(--muted)}
 .badge.g{color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent)}
@@ -387,6 +390,12 @@ const LOOKS = [
  ['lmchood','barrel','jordan','흰색 크루','스포티'],['wafw','barrel','jordan','흰색 크루','클린 캐주얼'],
  ['oxsolo','jean','jordan','흰색 크루','화이트 & 블루'],['lac','barrel','jordan','흰색 크루','단정한 네이비']
 ];
+const STYLES = ['워크웨어','워크웨어','아메카지','클린 캐주얼','워크웨어','아메카지','아메카지','아메카지','클래식','프레피','아메카지',
+ '아메리칸 캐주얼','워크웨어','클린 캐주얼','스트릿','원마일웨어','미니멀','시티보이','미니멀','스포티','미니멀','데일리','미니멀','미니멀',
+ '클래식','미니멀','스트릿','프레피','스포티','클린 캐주얼','클린 캐주얼','클래식'];
+LOOKS.forEach((l,i)=>l[5]=STYLES[i]);
+const STYLE_HUE = {'워크웨어':'#8a5a2b','아메카지':'#2f4a75','아메리칸 캐주얼':'#a5452f','클린 캐주얼':'#3d7a8c','클래식':'#5b4b7a','프레피':'#2e6b4f',
+ '스트릿':'#333','미니멀':'#6b7280','시티보이':'#7a6a2f','스포티':'#b5462f','원마일웨어':'#7d6b5d','데일리':'#5d6b7d','새 조합':'#888'};
 const CITIES = [['서울',37.5665,126.978],['광명',37.4786,126.8646],['인천',37.4563,126.7052],['수원',37.2636,127.0286],
  ['대전',36.3504,127.3845],['광주',35.1595,126.8526],['대구',35.8714,128.6014],['부산',35.1796,129.0756]];
 const KIND = {top:'상의',bottom:'바지',shoe:'신발',outer:'아우터'};
@@ -469,11 +478,11 @@ function colorPenalty(fams){
 const socksFor = s => s.suede||s.fam==='brown'?'오트밀':s.fam==='gray'?'그레이':'흰색 크루';
 function candidates(){
   const pick=st.pick[st.mode];
-  const list=LOOKS.filter(l=>byId(l[0])&&byId(l[1])&&byId(l[2])).map(l=>({top:l[0],bot:l[1],sh:l[2],socks:l[3],name:l[4],curated:true}));
+  const list=LOOKS.filter(l=>byId(l[0])&&byId(l[1])&&byId(l[2])).map(l=>({top:l[0],bot:l[1],sh:l[2],socks:l[3],name:l[4],style:l[5],curated:true}));
   if(custom.some(c=>c.kind!=='outer')){
     for(const t of ofKind('top')) for(const b of ofKind('bottom')) for(const s of ofKind('shoe')){
       if(!(t.custom||b.custom||s.custom)) continue;
-      list.push({top:t.id,bot:b.id,sh:s.id,socks:socksFor(s),name:'새 옷 조합',curated:false});
+      list.push({top:t.id,bot:b.id,sh:s.id,socks:socksFor(s),name:'새 옷 조합',style:'새 조합',curated:false});
     }
   }
   return list.filter(l=>st.mode==='bottom'?l.bot===pick:l.sh===pick);
@@ -604,7 +613,7 @@ function renderToday(){
         <div class="b" style="${fill(b)}"></div><div class="s" style="${fill(s)}"></div>
       </div>
       <div class="look-body">
-        <div class="lh"><div><div class="no">코디 ${i+1}</div><h3>${esc(l.name)}</h3></div><span class="badge ${badge[0]}">${badge[1]}</span></div>
+        <div class="lh"><div><span class="style" style="--sc:${STYLE_HUE[l.style]||'#888'}">${esc(l.style)}</span><h3>${esc(l.name)}</h3></div><span class="badge ${badge[0]}">${badge[1]}</span></div>
         <dl class="list">${row('아우터',o)}${row('상의',t)}${row('바지',b)}${row('신발',s)}
           <div class="li"><dt>양말</dt><dd>${esc(l.socks)}</dd></div><div class="li"><dt>벨트</dt><dd>${esc(belt(l,oc.o))}</dd></div></dl>
         <ul class="tips">${tips.map(([c,x])=>`<li class="${c}">${esc(x)}</li>`).join('')}</ul>
@@ -679,7 +688,7 @@ function openSheet(id){
   const visual=it.img?`<img src="${it.img}" alt="">`:`<span class="blob" style="${fill(it)}"></span>`;
   let extra='';
   if(it.kind==='outer') extra=`<div class="mini"><div>입는 기온 (출근길)<span>${it.lo<-10?'영하':it.lo+'°'} ~ ${it.hi}°</span></div></div>`;
-  else if(looks.length) extra=`<div class="mini">${looks.slice(0,6).map(l=>{const o=l.slice(0,3).filter(x=>x!==id).map(x=>byId(x).n);return `<div>${esc(l[4])}<span>${esc(o.join(' · '))}</span></div>`}).join('')}</div>`;
+  else if(looks.length) extra=`<div class="mini">${looks.slice(0,6).map(l=>{const o=l.slice(0,3).filter(x=>x!==id).map(x=>byId(x).n);return `<div><b style="font-weight:500">${esc(l[4])}</b> <small style="color:var(--muted)">${esc(l[5])}</small><span>${esc(o.join(' · '))}</span></div>`}).join('')}</div>`;
   $('sheet').innerHTML=`<div class="grab"></div><div class="big-photo">${visual}</div>
     <div><h3 id="shName">${esc(it.n)}</h3></div>
     <div class="meta"><span>${KIND[it.kind]}</span>${colorLabel(it)?`<span>${esc(colorLabel(it))}</span>`:''}${it.suede?'<span>스웨이드 · 비 주의</span>':''}${it.precious?'<span>아껴 신는 중</span>':''}</div>
