@@ -86,7 +86,24 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .rail::-webkit-scrollbar{display:none}
 .tile{flex:none;width:96px;scroll-snap-align:start;border:0;background:none;padding:0;text-align:left;display:flex;flex-direction:column;gap:6px}
 .tile .img{width:96px;height:112px;border-radius:16px;background:var(--card);box-shadow:var(--shadow);display:grid;place-items:center;overflow:hidden;position:relative;transition:transform .15s}
+.tile .img{background:#fff}
 .tile .img img{width:100%;height:100%;object-fit:cover}
+.tile .img img.fit{object-fit:contain;padding:8px;box-sizing:border-box}
+.sheet-bg{position:fixed;inset:0;z-index:40;background:rgb(0 0 0 / .45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:560px;max-height:88vh;overflow-y:auto;background:var(--bg);border-radius:24px 24px 0 0;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:16px}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:sh .28s cubic-bezier(.2,.8,.2,1)}@keyframes sh{from{transform:translateY(40px)}}}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto}
+.sheet .big-photo{width:100%;aspect-ratio:1;border-radius:20px;background:#fff;overflow:hidden;display:grid;place-items:center;max-width:100%}
+.sheet .big-photo img{width:100%;height:100%;object-fit:contain}
+.sheet .big-photo .blob{width:45%;aspect-ratio:1;border-radius:50%}
+.sheet h3{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.meta{display:flex;gap:8px;flex-wrap:wrap}
+.meta span{font-size:12px;font-weight:600;background:var(--chip);color:var(--muted);padding:4px 10px;border-radius:999px}
+.mini{display:flex;flex-direction:column;background:var(--card);border-radius:16px;box-shadow:var(--shadow)}
+.mini div{padding:11px 14px;border-top:1px solid var(--line);font-size:14px;display:flex;justify-content:space-between;gap:10px}
+.mini div:first-child{border-top:0}
+.mini div span{color:var(--muted);font-size:13px;text-align:right}
+.ghost{width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:13px;font-weight:600}
 .tile .blob{width:58px;height:58px;border-radius:50%;box-shadow:inset 0 0 0 1px rgb(0 0 0 / .08)}
 .tile .nm{font-size:12px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tile .cl{font-size:11px;color:var(--muted);margin-top:-4px}
@@ -245,7 +262,7 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 <main class="view" id="v-closet" hidden>
   <header class="appbar"><div><div class="date">내 옷 전체</div><h1 class="title">옷장</h1></div><span class="count" id="totalCount"></span></header>
   <div id="closetBody" style="display:flex;flex-direction:column;gap:24px"></div>
-  <p class="note">새로 추가한 옷은 길게 누르지 않아도 아래 '빼기'로 지울 수 있어요. 추가한 옷은 이 기기에만 저장됩니다.</p>
+  <p class="note">옷을 누르면 사진과 같이 입는 코디를 볼 수 있어요. 직접 추가한 옷은 '빼기'로 지우고, 이 기기에만 저장됩니다.</p>
 </main>
 
 <!-- 추가 -->
@@ -291,6 +308,7 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
   <button type="button" data-v="add">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="M12 8v8M8 12h8"/></svg>추가</button>
 </nav></div>
+<div class="sheet-bg" id="sheetBg" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="shName" id="sheet"></div></div>
 <div class="toast" id="toast" hidden></div>
 
 <script>
@@ -336,6 +354,10 @@ const BASE = [
  {id:'duffle',kind:'outer',n:'어반스터프 하프 더플',c:'차콜',fam:'gray',lo:-3,hi:9,hex:'#4a4d52'},
  {id:'puffer',kind:'outer',n:'블랙 숏패딩',fam:'black',lo:-20,hi:3}
 ];
+const PHOTO = {raw:'raw',jean:'jean',dkb:'dkb',olive:'olive',khaki:'khaki',chuck:'chuck',walla:'walla',af1:'af1',nb990:'nb990',nb530:'nb530',jordan:'jordan',
+  oxgray:'graysw',oxgreen:'greensw',graysw:'graysw',greensw:'greensw',lmchood:'lmchood',filhood:'filhood',wafw:'wafw',wafb:'wafb',lsw:'lsw',lac:'lac',oxopen:'oxford',oxsolo:'oxford',
+  reebok:'reebok',blouson:'blouson',leather:'leather',padshirt:'padshirt',duffle:'duffle'};
+BASE.forEach(b=>{ if(PHOTO[b.id]) b.img='img/'+PHOTO[b.id]+'.jpg'; });
 const FIT = {
   jean:{chuck:3,nb990:2,walla:2,af1:3,nb530:2,jordan:2}, raw:{chuck:2,nb990:1,walla:3,af1:2,nb530:1,jordan:1},
   dkb:{chuck:3,nb990:2,walla:0,af1:2,nb530:3,jordan:1}, olive:{chuck:2,nb990:1,walla:3,af1:0,nb530:0,jordan:0},
@@ -510,7 +532,7 @@ const fill = it => it.img?`background-image:url('${it.img}')`:it.hex2?`backgroun
 const colorLabel = it => it.c||FAM[it.fam]?.[0]||'';
 const CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 function tile(it,selected,extra=''){
-  const visual = it.img?`<img src="${it.img}" alt="">`:`<span class="blob" style="${fill(it)}"></span>`;
+  const visual = it.img?`<img src="${it.img}" alt="" loading="lazy"${it.kind==='shoe'?' class="fit"':''}>`:`<span class="blob" style="${fill(it)}"></span>`;
   return `<button type="button" class="tile" data-k="${it.id}" aria-pressed="${!!selected}">
     <span class="img">${visual}<span class="check">${CHECK}</span></span>
     <span class="nm">${esc(it.n)}</span><span class="cl">${esc(colorLabel(it))}</span>${extra}</button>`;
@@ -625,8 +647,32 @@ $('saveItem').addEventListener('click',()=>{
   if(k==='bottom'||k==='shoe'){ st.mode=k; st.pick[k]=it.id; }
   render(); toast(`${name} 넣었어요`);
 });
+function openSheet(id){
+  const it=byId(id); if(!it) return;
+  const looks=LOOKS.filter(l=>l.slice(0,3).includes(id));
+  const visual=it.img?`<img src="${it.img}" alt="">`:`<span class="blob" style="${fill(it)}"></span>`;
+  let extra='';
+  if(it.kind==='outer') extra=`<div class="mini"><div>입는 기온 (출근길)<span>${it.lo<-10?'영하':it.lo+'°'} ~ ${it.hi}°</span></div></div>`;
+  else if(looks.length) extra=`<div class="mini">${looks.slice(0,6).map(l=>{const o=l.slice(0,3).filter(x=>x!==id).map(x=>byId(x).n);return `<div>${esc(l[4])}<span>${esc(o.join(' · '))}</span></div>`}).join('')}</div>`;
+  $('sheet').innerHTML=`<div class="grab"></div><div class="big-photo">${visual}</div>
+    <div><h3 id="shName">${esc(it.n)}</h3></div>
+    <div class="meta"><span>${KIND[it.kind]}</span>${colorLabel(it)?`<span>${esc(colorLabel(it))}</span>`:''}${it.suede?'<span>스웨이드 · 비 주의</span>':''}${it.precious?'<span>아껴 신는 중</span>':''}</div>
+    ${extra?`<div><div class="sec-h" style="margin-bottom:8px"><h2 style="font-size:16px">${it.kind==='outer'?'정보':'같이 입는 코디'}</h2></div>${extra}</div>`:''}
+    ${it.kind==='bottom'||it.kind==='shoe'?`<button class="primary" type="button" id="shUse">이걸로 오늘 코디 보기</button>`:''}
+    ${it.link?`<a class="ghost" style="text-align:center;text-decoration:none;color:inherit" href="${esc(it.link)}" target="_blank" rel="noopener">상품 페이지 열기</a>`:''}
+    <button class="ghost" type="button" id="shClose">닫기</button>`;
+  $('sheetBg').hidden=false; document.body.style.overflow='hidden';
+  $('shClose').onclick=closeSheet;
+  if($('shUse')) $('shUse').onclick=()=>{ st.mode=it.kind; st.pick[it.kind]=it.id; closeSheet(); render(); go('today'); };
+  $('shClose').focus();
+}
+function closeSheet(){ $('sheetBg').hidden=true; document.body.style.overflow=''; }
+$('sheetBg').addEventListener('click',e=>{ if(e.target===$('sheetBg')) closeSheet(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('sheetBg').hidden) closeSheet(); });
 $('closetBody').addEventListener('click',e=>{
-  const d=e.target.closest('[data-del]'); if(!d) return; e.stopPropagation();
+  const d=e.target.closest('[data-del]');
+  if(!d){ const t=e.target.closest('.tile'); if(t) openSheet(t.dataset.k); return; }
+  e.stopPropagation();
   if(d.dataset.armed!=='1'){ d.dataset.armed='1'; d.textContent='한 번 더 누르면 삭제'; return; }
   custom=custom.filter(x=>x.id!==d.dataset.del); store.set('custom',custom); render(); toast('뺐어요');
 });
