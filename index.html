@@ -118,6 +118,10 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .tog::before{content:"";width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;opacity:.6;flex:none;box-sizing:border-box}
 .tog[aria-pressed="true"]{background:var(--denim2);border-color:var(--denim2);color:#fff}
 .tog[aria-pressed="true"]::before{opacity:1;border:0;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23284068' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4L18 8'/%3E%3C/svg%3E") center/11px no-repeat}
+.occ{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.occ button{border:1.5px solid var(--line);background:var(--card);border-radius:16px;padding:12px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);box-shadow:var(--shadow)}
+.occ button svg{width:24px;height:24px}
+.occ button[aria-checked="true"]{background:var(--denim2);border-color:var(--denim2);color:#fff}
 .tog-help{font-size:12px;color:var(--muted);margin:8px 2px 0}
 
 /* 코디 카드 */
@@ -244,11 +248,8 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
   </section>
 
   <section>
-    <div class="togs">
-      <button type="button" class="tog" id="oStain">외근·식사</button>
-      <button type="button" class="tog" id="oSave">990 아껴 신기</button>
-      <button type="button" class="tog" id="oHot">추위 안 탐</button>
-    </div>
+    <div class="sec-h"><h2>오늘 어디 가?</h2></div>
+    <div class="occ" id="occ" role="radiogroup" aria-label="상황"></div>
     <p class="tog-help" id="togHelp"></p>
   </section>
 
@@ -262,6 +263,11 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 <main class="view" id="v-closet" hidden>
   <header class="appbar"><div><div class="date">내 옷 전체</div><h1 class="title">옷장</h1></div><span class="count" id="totalCount"></span></header>
   <div id="closetBody" style="display:flex;flex-direction:column;gap:24px"></div>
+  <section><div class="sec-h"><h2>추천 설정</h2></div>
+    <div class="group">
+      <div class="fr"><label for="sSave">990 아껴 신기</label><span class="switch"><input type="checkbox" id="sSave"><span></span></span></div>
+      <div class="fr"><label for="sHot">추위 안 탐 (아우터 한 단계 가볍게)</label><span class="switch"><input type="checkbox" id="sHot"><span></span></span></div>
+    </div></section>
   <p class="note">옷을 누르면 사진과 같이 입는 코디를 볼 수 있어요. 직접 추가한 옷은 '빼기'로 지우고, 이 기기에만 저장됩니다.</p>
 </main>
 
@@ -396,7 +402,7 @@ const byId = id => all().find(x=>x.id===id);
 const ofKind = k => all().filter(x=>x.kind===k);
 const st = {
   mode:store.get('mode','bottom'), pick:store.get('pick',{bottom:'jean',shoe:'chuck'}),
-  day:new Date().getHours()>=18?1:0, stain:false, save:store.get('save',true), hot:store.get('hot',true), wx:null
+  day:new Date().getHours()>=18?1:0, occ:new Date().getDay()%6===0?'weekend':'work', save:store.get('save',true), hot:store.get('hot',true), wx:null
 };
 
 /* ---------- 날씨 ---------- */
@@ -472,14 +478,35 @@ function candidates(){
   }
   return list.filter(l=>st.mode==='bottom'?l.bot===pick:l.sh===pick);
 }
+const OCC = {
+  work:{n:'출근룩',help:'단정하게 · 셔츠·헨리·피케 우선, 후드는 뒤로',
+    ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12.5h18"/></svg>'},
+  field:{n:'외근·식사',help:'튀어도 티 안 나게 · 어두운 상의, 편한 신발',
+    ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 21V3c-2.5 1.5-3 4-3 7h3"/></svg>'},
+  weekend:{n:'주말룩',help:'편하게 · 후드·스웨트, 스니커즈',
+    ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h18M5 18l2-7h10l2 7M9 11V8a3 3 0 0 1 6 0v3"/></svg>'},
+  date:{n:'약속·데이트',help:'깔끔하게 · 밝은 톤, 깨끗한 신발',
+    ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20s-7.5-4.4-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.6-7.5 10-7.5 10z"/></svg>'}
+};
+const NEAT = new Set(['oxgray','oxgreen','oxopen','oxsolo','lac','wafw','wafb']);
+const CASUAL = new Set(['lmchood','filhood','graysw','greensw','lsw']);
+function occScore(l){
+  const o=st.occ, t=l.top, b=l.bot, s=byId(l.sh); let v=0;
+  if(o==='work'){ if(NEAT.has(t)) v+=4; if(t==='lmchood'||t==='filhood') v-=5; if(s.fam==='lightblue') v-=2; if(b==='barrel') v-=1; }
+  if(o==='field'){ if(s.suede) v-=4; if(['nb530','nb990','chuck'].includes(s.id)) v+=2; if(t==='lac'||t==='wafb') v+=2; }
+  if(o==='weekend'){ if(CASUAL.has(t)) v+=4; if(['af1','jordan','nb990','nb530'].includes(s.id)) v+=2; if(t==='lac') v-=2; }
+  if(o==='date'){ if(['oxgray','oxgreen','oxopen','oxsolo','wafw'].includes(t)) v+=4; if(t==='lmchood'||t==='filhood') v-=4; if(['walla','chuck','af1'].includes(s.id)) v+=2; if(b==='dkb'||b==='barrel') v-=2; }
+  return v;
+}
 function score(l,wx){
   const t=byId(l.top),b=byId(l.bot),s=byId(l.sh),f=fit(b,s),notes=[];
-  let sc=f*3+(l.curated?3:0)-colorPenalty([t.fam,b.fam,s.fam]);
+  let sc=f*3+(l.curated?3:0)-colorPenalty([t.fam,b.fam,s.fam])+occScore(l);
   if(f===0) sc-=8;
   if((wx.dayPop??wx.pop)>=50&&s.suede){ sc-=8; notes.push(['w','비 예보 · 스웨이드는 젖으면 얼룩, 방수 스프레이 필수']); }
   if(st.save&&s.precious) sc-=4;
-  if(st.stain&&!t.dark){ sc-=5; notes.push(['w','밝은 상의라 소스가 튀면 바로 보임']); }
-  if(st.stain&&t.dark) sc+=2;
+  if(st.occ==='field'&&!t.dark){ sc-=5; notes.push(['w','밝은 상의라 소스가 튀면 바로 보임']); }
+  if(st.occ==='field'&&t.dark) sc+=2;
+  if(st.occ==='date'&&s.precious&&st.save) sc+=4;
   if(wx.max>=22&&t.w>=2){ sc-=3; notes.push(['w',`낮 ${Math.round(wx.max)}°라 스웨트·후드는 더울 수 있음`]); }
   if(wx.commute<8&&t.w<=1.2&&!st.hot) sc-=2;
   if(wx.max<=12&&t.w>=2) sc+=1;
@@ -500,7 +527,9 @@ function pickOuter(l,wx){
     if(o.id==='reebok'&&(b.fam==='olive'||s.suede)) v-=3;
     if(o.fam==='black'&&b.fam==='black'&&s.fam==='black') v-=5;
     if(o.fam==='black'&&top.dark&&b.fam==='black') v-=3;
-    if(o.id==='leather'&&st.stain) v-=2;
+    if(o.id==='leather'&&st.occ==='field') v-=2;
+    if(o.id==='leather'&&st.occ==='date') v+=1.5;
+    if(o.id==='reebok'&&st.occ==='work') v-=2;
     if(o.id==='leather'&&(l.top==='filhood'||l.top==='lsw')) v+=2;
     if(o.id==='duffle'&&/옥스퍼드/.test(top.n)) v+=2;
     if(!NEUTRAL.has(o.fam)&&o.fam!=='brown'&&colorPenalty([o.fam,top.fam,b.fam,s.fam])>0) v-=3;
@@ -545,11 +574,8 @@ function renderToday(){
   $('mBottom').setAttribute('aria-pressed',String(st.mode==='bottom'));
   $('mShoe').setAttribute('aria-pressed',String(st.mode==='shoe'));
   $('pickTitle').textContent=st.mode==='bottom'?'바지 고르기':'신발 고르기';
-  $('oStain').setAttribute('aria-pressed',String(st.stain));
-  $('oSave').setAttribute('aria-pressed',String(st.save));
-  $('oHot').setAttribute('aria-pressed',String(st.hot));
-  const on=[st.stain&&'어두운 상의 우선',st.save&&'990은 빼고',st.hot&&'아우터 한 단계 가볍게'].filter(Boolean);
-  $('togHelp').textContent=on.length?'적용 중: '+on.join(' · '):'켜면 오늘 상황에 맞게 추천이 바뀌어요';
+  $('occ').innerHTML=Object.entries(OCC).map(([k,v])=>`<button type="button" role="radio" data-o="${k}" aria-checked="${st.occ===k}">${v.ic}${v.n}</button>`).join('');
+  $('togHelp').textContent=OCC[st.occ].help+(st.save&&st.occ!=='date'?' · 990은 아끼는 중':'');
 
   const items=ofKind(st.mode);
   if(!items.some(x=>x.id===st.pick[st.mode])) st.pick[st.mode]=items[0]?.id;
@@ -567,7 +593,7 @@ function renderToday(){
     if(t.how) tips.push(['',t.how]); if(b.tip) tips.push(['',b.tip]);
     if(b.fam==='indigo'&&s.suede) tips.push(['','생지 이염 주의 · 밑단이 신발에 닿지 않게']);
     tips.push(['',oc.why+(o&&o.hi>=16?' · 앞은 열어서':'')]);
-    if(st.stain&&o) tips.push(['','식사할 땐 아우터는 벗어두기']);
+    if(st.occ==='field'&&o) tips.push(['','식사할 땐 아우터는 벗어두기']);
     if(!l.curated) tips.push(['','새로 추가한 옷 조합 · 거울로 한 번 확인']);
     r.notes.forEach(n=>tips.push(n));
     const badge=r.f>=3?['g','궁합 좋음']:r.f===2?['','무난']:['','애매'];
@@ -713,9 +739,9 @@ $('locBtn').addEventListener('click',locate);
 ['d0','d1'].forEach(id=>$(id).addEventListener('click',e=>{st.day=+e.currentTarget.dataset.d;render();}));
 ['mBottom','mShoe'].forEach(id=>$(id).addEventListener('click',e=>{st.mode=e.currentTarget.dataset.m;render();}));
 $('rail').addEventListener('click',e=>{const b=e.target.closest('.tile'); if(!b) return; st.pick[st.mode]=b.dataset.k; render();});
-$('oStain').addEventListener('click',()=>{st.stain=!st.stain;render();});
-$('oSave').addEventListener('click',()=>{st.save=!st.save;render();});
-$('oHot').addEventListener('click',()=>{st.hot=!st.hot;render();});
+$('occ').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; st.occ=b.dataset.o; render();});
+$('sSave').checked=st.save; $('sSave').addEventListener('change',e=>{st.save=e.target.checked;render();});
+$('sHot').checked=st.hot; $('sHot').addEventListener('change',e=>{st.hot=e.target.checked;render();});
 ['mMin','mMax','mPop'].forEach(id=>$(id).addEventListener('input',render));
 syncKind(); render(); locate();
 </script>
