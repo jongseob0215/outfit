@@ -122,6 +122,14 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .occ button{border:1.5px solid var(--line);background:var(--card);border-radius:16px;padding:12px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);box-shadow:var(--shadow)}
 .occ button svg{width:24px;height:24px}
 .occ button[aria-checked="true"]{background:var(--denim2);border-color:var(--denim2);color:#fff}
+.prev{margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow)}
+.prev-l{font-size:12px;font-weight:600;color:var(--muted)}
+.prev-s{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;min-width:0}
+.prev-s select{border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:6px 8px;font-size:13px;max-width:52vw}
+.warn{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn);border-radius:14px;padding:12px 14px;font-size:13px;font-weight:600;margin-bottom:12px}
+.yest{position:absolute;left:7px;bottom:7px;font-size:10px;font-weight:700;background:var(--warn);color:#fff;padding:2px 7px;border-radius:999px}
+.wear{border:0;border-radius:12px;padding:11px;font-weight:700;font-size:14px;background:var(--chip);color:var(--ink)}
+.wear[aria-pressed="true"]{background:var(--good);color:#fff}
 .tog-help{font-size:12px;color:var(--muted);margin:8px 2px 0}
 
 /* 코디 카드 */
@@ -229,7 +237,7 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 <!-- 오늘 -->
 <main class="view" id="v-today">
   <header class="appbar">
-    <div><div class="date" id="dateLbl"></div><h1 class="title">오늘 뭐 입지</h1></div>
+    <div><div class="date" id="dateLbl"></div><h1 class="title" id="todayTitle">오늘 뭐 입지</h1></div>
     <button class="pill" type="button" id="locBtn" aria-label="위치 다시 받기">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
       <span id="locName">위치 확인 중</span>
@@ -277,10 +285,16 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
     <div class="sec-h"><h2>오늘 어디 가?</h2></div>
     <div class="occ" id="occ" role="radiogroup" aria-label="상황"></div>
     <p class="tog-help" id="togHelp"></p>
+    <div class="prev" id="prevRow">
+      <span class="prev-l">규칙 · 신발 2일 연속 금지</span>
+      <label class="prev-s"><span id="prevLbl">어제 신발</span>
+        <select id="prevShoe" aria-label="전날 신은 신발"></select></label>
+    </div>
   </section>
 
   <section>
     <div class="sec-h"><h2>추천 코디</h2><span class="count" id="lookSub"></span></div>
+    <div class="warn" id="ruleWarn" hidden></div>
     <div class="looks" id="looks"></div>
   </section>
 </main>
@@ -590,9 +604,15 @@ function occScore(l){
   if(o==='date'){ if(['oxgray','oxgreen','oxopen','oxsolo','wafw'].includes(t)) v+=4; if(t==='lmchood'||t==='filhood') v-=4; if(['walla','chuck','af1'].includes(s.id)) v+=2; if(b==='dkb'||b==='barrel') v-=2; }
   return v;
 }
+/* ---------- 착용 기록 & 규칙 ---------- */
+let log = store.get('log',{});
+const dkey = off => { const d=new Date(); d.setDate(d.getDate()+off); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+const prevShoe = () => log[dkey(st.day-1)]?.sh || null;     // 고른 날짜의 전날 신은 신발
+function saveLog(){ const keep=Object.keys(log).sort().slice(-60); log=Object.fromEntries(keep.map(k=>[k,log[k]])); store.set('log',log); }
 function score(l,wx){
   const t=byId(l.top),b=byId(l.bot),s=byId(l.sh),f=fit(b,s),notes=[];
   let sc=f*3+(l.curated?3:0)-colorPenalty([t.fam,b.fam,s.fam])+occScore(l);
+  if(prevShoe()===l.sh) sc-=100;   // 규칙: 신발 2일 연속 금지
   if(f===0) sc-=8;
   if((wx.dayPop??wx.pop)>=50&&s.suede){ sc-=8; notes.push(['w','비 예보 · 스웨이드는 젖으면 얼룩, 방수 스프레이 필수']); }
   if(st.save&&s.precious) sc-=4;
@@ -659,8 +679,10 @@ function tile(it,selected,extra=''){
     <span class="nm">${esc(it.n)}</span><span class="cl">${esc(colorLabel(it))}</span>${extra}</button>`;
 }
 
+let lastOut=[], lastOuter=[];
 function renderToday(){
   const d=new Date(); d.setDate(d.getDate()+st.day);
+  $('todayTitle').textContent=st.day===1?'내일 뭐 입지':'오늘 뭐 입지';
   $('dateLbl').textContent=d.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'});
   ['d0','d1'].forEach((id,i)=>$(id).setAttribute('aria-pressed',String(st.day===i)));
   $('mBottom').setAttribute('aria-pressed',String(st.mode==='bottom'));
@@ -671,7 +693,14 @@ function renderToday(){
 
   const items=ofKind(st.mode);
   if(!items.some(x=>x.id===st.pick[st.mode])) st.pick[st.mode]=items[0]?.id;
+  const ps=prevShoe(), yl=st.day===1?'오늘':'어제';
   $('rail').innerHTML=items.map(it=>tile(it,st.pick[st.mode]===it.id)).join('');
+  if(st.mode==='shoe'&&ps){ const tl=$('rail').querySelector(`[data-k="${ps}"] .img`); if(tl) tl.insertAdjacentHTML('beforeend',`<span class="yest">${yl} 신음</span>`); }
+  $('prevLbl').textContent=`${yl} 신발`;
+  $('prevShoe').innerHTML='<option value="">기록 없음</option>'+ofKind('shoe').map(x=>`<option value="${x.id}"${x.id===ps?' selected':''}>${esc(x.n)}</option>`).join('');
+  const warn = st.mode==='shoe'&&ps===st.pick.shoe;
+  $('ruleWarn').hidden=!warn;
+  if(warn) $('ruleWarn').textContent=`${yl} 신은 신발이에요 (${byId(ps).n}). 2일 연속이라 다른 신발을 골라주세요.`;
 
   const {wx,out}=build(); const f=n=>(n==null||isNaN(n))?'--':Math.round(n)+'°';
   $('commuteT').textContent=f(wx.commute); $('tmin').textContent=f(wx.min); $('tmax').textContent=f(wx.max);
@@ -680,6 +709,7 @@ function renderToday(){
   const sel=byId(st.pick[st.mode]);
   $('lookSub').textContent=sel?`${sel.n.split(' ').slice(-2).join(' ')} 기준`:'';
 
+  const worn=log[dkey(st.day)]; lastOut=out.map(r=>r.l); lastOuter=out.map(r=>pickOuter(r.l,wx).o);
   $('looks').innerHTML=out.length?out.map((r,i)=>{
     const l=r.l,t=byId(l.top),b=byId(l.bot),s=byId(l.sh),oc=pickOuter(l,wx),o=oc.o?byId(oc.o):null,tips=[];
     if(t.how) tips.push(['',t.how]); if(b.tip) tips.push(['',b.tip]);
@@ -701,6 +731,7 @@ function renderToday(){
         <dl class="list">${row('아우터',o)}${row('상의',t)}${row('바지',b)}${row('신발',s)}
           <div class="li"><dt>양말</dt><dd>${esc(l.socks)}</dd></div><div class="li"><dt>벨트</dt><dd>${esc(belt(l,oc.o))}</dd></div></dl>
         <ul class="tips">${tips.map(([c,x])=>`<li class="${c}">${esc(x)}</li>`).join('')}</ul>
+        <button type="button" class="wear" data-wear="${i}" aria-pressed="${worn&&worn.sh===l.sh&&worn.top===l.top&&worn.bot===l.bot}">${worn&&worn.sh===l.sh&&worn.top===l.top&&worn.bot===l.bot?'이걸로 입기로 했어요':(st.day===1?'내일 이걸로 입을게요':'오늘 이걸로 입을게요')}</button>
       </div></article>`;}).join('')
     :`<div class="empty">이 옷으로 만든 코디가 아직 없어요.<br>상의나 신발을 추가하면 조합이 생깁니다.</div>`;
 }
@@ -849,6 +880,18 @@ $('closetBody').addEventListener('click',e=>{
 $('city').innerHTML=CITIES.map(c=>`<option>${c[0]}</option>`).join('');
 $('city').addEventListener('change',e=>{const c=CITIES.find(x=>x[0]===e.target.value); if(c) useCoords(c[1],c[2],c[0]);});
 $('locBtn').addEventListener('click',locate);
+$('looks').addEventListener('click',e=>{
+  const b=e.target.closest('[data-wear]'); if(!b) return; const i=+b.dataset.wear, l=lastOut[i]; if(!l) return;
+  const k=dkey(st.day), cur=log[k];
+  if(cur&&cur.sh===l.sh&&cur.top===l.top&&cur.bot===l.bot){ delete log[k]; saveLog(); render(); toast('기록을 지웠어요'); return; }
+  log[k]={top:l.top,bot:l.bot,sh:l.sh,outer:lastOuter[i]||null}; saveLog(); render();
+  toast(`기록했어요 · ${st.day===1?'모레':'내일'}은 ${byId(l.sh).n} 빼고 추천`);
+});
+$('prevShoe').addEventListener('change',e=>{
+  const k=dkey(st.day-1), v=e.target.value;
+  if(v) log[k]={...(log[k]||{}),sh:v}; else if(log[k]) delete log[k].sh;
+  saveLog(); render();
+});
 $('shopBody').addEventListener('click',e=>{
   const b=e.target.closest('[data-own]'); if(!b) return; const id=b.dataset.own, x=SHOP.find(y=>y.id===id);
   if(has(id)) owned=owned.filter(y=>y!==id); else owned.push(id);
