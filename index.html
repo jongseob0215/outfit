@@ -274,6 +274,7 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
     <div class="sec-h">
       <h2 id="pickTitle">바지 고르기</h2>
       <div class="tabs2" role="group" aria-label="기준">
+        <button type="button" id="mAuto" data-m="auto">알아서</button>
         <button type="button" id="mBottom" data-m="bottom">바지</button>
         <button type="button" id="mShoe" data-m="shoe">신발</button>
       </div>
@@ -505,7 +506,7 @@ const all = () => BASE.concat(shopItems(), custom);
 const byId = id => all().find(x=>x.id===id);
 const ofKind = k => all().filter(x=>x.kind===k);
 const st = {
-  mode:store.get('mode','bottom'), pick:store.get('pick',{bottom:'jean',shoe:'chuck'}),
+  mode:store.get('mode2','auto'), pick:store.get('pick',{bottom:'jean',shoe:'chuck'}),
   day:new Date().getHours()>=18?1:0, occ:new Date().getDay()%6===0?'weekend':'work', save:store.get('save',true), hot:store.get('hot',true), wx:null
 };
 
@@ -580,6 +581,7 @@ function candidates(){
       list.push({top:t.id,bot:b.id,sh:s.id,socks:socksFor(s),name:'새 옷 조합',style:'새 조합',curated:false});
     }
   }
+  if(st.mode==='auto') return list;
   return list.filter(l=>st.mode==='bottom'?l.bot===pick:l.sh===pick);
 }
 const OCC = {
@@ -614,7 +616,7 @@ function score(l,wx){
   let sc=f*3+(l.curated?3:0)-colorPenalty([t.fam,b.fam,s.fam])+occScore(l);
   if(prevShoe()===l.sh) sc-=100;   // 규칙: 신발 2일 연속 금지
   if(f===0) sc-=8;
-  if((wx.dayPop??wx.pop)>=50&&s.suede){ sc-=8; notes.push(['w','비 예보 · 스웨이드는 젖으면 얼룩, 방수 스프레이 필수']); }
+  if((wx.dayPop??wx.pop)>=50&&s.suede){ sc-=20; notes.push(['w','비 예보 · 스웨이드는 젖으면 얼룩, 방수 스프레이 필수']); }
   if(st.save&&s.precious) sc-=4;
   if(st.occ==='field'&&!t.dark){ sc-=5; notes.push(['w','밝은 상의라 소스가 튀면 바로 보임']); }
   if(st.occ==='field'&&t.dark) sc+=2;
@@ -660,9 +662,12 @@ function build(){
   const wx=dayWeather();
   const ranked=candidates().map(l=>({l,...score(l,wx)})).sort((a,b)=>b.sc-a.sc);
   const out=[],uT=new Set(),uO=new Set();
-  for(const r of ranked){ const o=st.mode==='bottom'?r.l.sh:r.l.bot;
-    if(out.length&&(uT.has(r.l.top)||uO.has(o))) continue; out.push(r); uT.add(r.l.top); uO.add(o); if(out.length===2) break; }
-  for(const r of ranked){ if(out.length===2) break; if(!out.includes(r)) out.push(r); }
+  const N=st.mode==='auto'?3:2, uB=new Set(), uS=new Set();
+  for(const r of ranked){
+    if(st.mode==='auto'){ if(out.length&&(uT.has(r.l.top)||uB.has(r.l.bot)||uS.has(r.l.sh))) continue; }
+    else { const o=st.mode==='bottom'?r.l.sh:r.l.bot; if(out.length&&(uT.has(r.l.top)||uO.has(o))) continue; uO.add(o); }
+    out.push(r); uT.add(r.l.top); uB.add(r.l.bot); uS.add(r.l.sh); if(out.length===N) break; }
+  for(const r of ranked){ if(out.length===N) break; if(!out.includes(r)) out.push(r); }
   return {wx,out};
 }
 
@@ -685,14 +690,16 @@ function renderToday(){
   $('todayTitle').textContent=st.day===1?'내일 뭐 입지':'오늘 뭐 입지';
   $('dateLbl').textContent=d.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'});
   ['d0','d1'].forEach((id,i)=>$(id).setAttribute('aria-pressed',String(st.day===i)));
+  $('mAuto').setAttribute('aria-pressed',String(st.mode==='auto'));
   $('mBottom').setAttribute('aria-pressed',String(st.mode==='bottom'));
   $('mShoe').setAttribute('aria-pressed',String(st.mode==='shoe'));
-  $('pickTitle').textContent=st.mode==='bottom'?'바지 고르기':'신발 고르기';
+  $('pickTitle').textContent=st.mode==='auto'?'뭐 입을지':st.mode==='bottom'?'바지 고르기':'신발 고르기';
+  $('rail').hidden=st.mode==='auto';
   $('occ').innerHTML=Object.entries(OCC).map(([k,v])=>`<button type="button" role="radio" data-o="${k}" aria-checked="${st.occ===k}">${v.ic}${v.n}</button>`).join('');
   $('togHelp').textContent=OCC[st.occ].help+(st.save&&st.occ!=='date'?' · 990은 아끼는 중':'');
 
-  const items=ofKind(st.mode);
-  if(!items.some(x=>x.id===st.pick[st.mode])) st.pick[st.mode]=items[0]?.id;
+  const items=st.mode==='auto'?[]:ofKind(st.mode);
+  if(st.mode!=='auto'&&!items.some(x=>x.id===st.pick[st.mode])) st.pick[st.mode]=items[0]?.id;
   const ps=prevShoe(), yl=st.day===1?'오늘':'어제';
   $('rail').innerHTML=items.map(it=>tile(it,st.pick[st.mode]===it.id)).join('');
   if(st.mode==='shoe'&&ps){ const tl=$('rail').querySelector(`[data-k="${ps}"] .img`); if(tl) tl.insertAdjacentHTML('beforeend',`<span class="yest">${yl} 신음</span>`); }
@@ -706,8 +713,8 @@ function renderToday(){
   $('commuteT').textContent=f(wx.commute); $('tmin').textContent=f(wx.min); $('tmax').textContent=f(wx.max);
   $('pop').textContent=wx.pop==null?'--':Math.round(wx.pop)+'%'; $('wdesc').textContent=wx.desc;
   $('hours').innerHTML=wx.hours.map(h=>`<div class="h${h.h>=7&&h.h<=9?' cm':''}">${h.h}시<b>${Math.round(h.v)}°</b><i>${h.p>=20?h.p+'%':'&nbsp;'}</i></div>`).join('');
-  const sel=byId(st.pick[st.mode]);
-  $('lookSub').textContent=sel?`${sel.n.split(' ').slice(-2).join(' ')} 기준`:'';
+  const sel=st.mode==='auto'?null:byId(st.pick[st.mode]);
+  $('lookSub').textContent=st.mode==='auto'?'날씨·상황 보고 3벌':sel?`${sel.n.split(' ').slice(-2).join(' ')} 기준`:'';
 
   const worn=log[dkey(st.day)]; lastOut=out.map(r=>r.l); lastOuter=out.map(r=>pickOuter(r.l,wx).o);
   $('looks').innerHTML=out.length?out.map((r,i)=>{
@@ -765,7 +772,7 @@ function renderShop(){
 }
 function render(){
   renderToday(); renderCloset(); renderShop();
-  store.set('mode',st.mode); store.set('pick',st.pick); store.set('save',st.save); store.set('hot',st.hot);
+  store.set('mode2',st.mode); store.set('pick',st.pick); store.set('save',st.save); store.set('hot',st.hot);
 }
 let toastT;
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2200); }
@@ -899,7 +906,7 @@ $('shopBody').addEventListener('click',e=>{
   toast(has(id)?(x.item?`옷장에 넣었어요 · 새 코디 ${lookCount(id)}개`:'산 것으로 옮겼어요'):'되돌렸어요');
 });
 ['d0','d1'].forEach(id=>$(id).addEventListener('click',e=>{st.day=+e.currentTarget.dataset.d;render();}));
-['mBottom','mShoe'].forEach(id=>$(id).addEventListener('click',e=>{st.mode=e.currentTarget.dataset.m;render();}));
+['mAuto','mBottom','mShoe'].forEach(id=>$(id).addEventListener('click',e=>{st.mode=e.currentTarget.dataset.m;render();}));
 $('rail').addEventListener('click',e=>{const b=e.target.closest('.tile'); if(!b) return; st.pick[st.mode]=b.dataset.k; render();});
 $('occ').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; st.occ=b.dataset.o; render();});
 $('sSave').checked=st.save; $('sSave').addEventListener('change',e=>{st.save=e.target.checked;render();});
