@@ -126,6 +126,12 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .prev-l{font-size:12px;font-weight:600;color:var(--muted)}
 .prev-s{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;min-width:0}
 .prev-s select{border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:6px 8px;font-size:13px;max-width:52vw}
+.rainbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.rainbar.on{background:color-mix(in srgb,var(--denim2) 14%,transparent);border-radius:14px;padding:11px 14px}
+.rainbar .rt{font-size:13px;font-weight:600;display:flex;gap:8px;align-items:center;min-width:0}
+.rainbar .rt svg{flex:none;width:18px;height:18px}
+.rainbar button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;flex:none}
+.style.rain{--sc:#2f6fb0}
 .warn{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn);border-radius:14px;padding:12px 14px;font-size:13px;font-weight:600;margin-bottom:12px}
 .yest{position:absolute;left:7px;bottom:7px;font-size:10px;font-weight:700;background:var(--warn);color:#fff;padding:2px 7px;border-radius:999px}
 .wear{border:0;border-radius:12px;padding:11px;font-weight:700;font-size:14px;background:var(--chip);color:var(--ink)}
@@ -295,6 +301,7 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 
   <section>
     <div class="sec-h"><h2>추천 코디</h2><span class="count" id="lookSub"></span></div>
+    <div class="rainbar" id="rainBar"></div>
     <div class="warn" id="ruleWarn" hidden></div>
     <div class="looks" id="looks"></div>
   </section>
@@ -506,6 +513,7 @@ const all = () => BASE.concat(shopItems(), custom);
 const byId = id => all().find(x=>x.id===id);
 const ofKind = k => all().filter(x=>x.kind===k);
 const st = {
+  rain:null,
   mode:store.get('mode2','auto'), pick:store.get('pick',{bottom:'jean',shoe:'chuck'}),
   day:new Date().getHours()>=18?1:0, occ:new Date().getDay()%6===0?'weekend':'work', save:store.get('save',true), hot:store.get('hot',true), wx:null
 };
@@ -572,9 +580,21 @@ function colorPenalty(fams){
   return p;
 }
 const socksFor = s => s.suede||s.fam==='brown'?'오트밀':s.fam==='gray'?'그레이':'흰색 크루';
+const RAIN_LOOKS = [
+ ['wafb','dkb','af1','흰색 크루','비 오는 날 블랙 & 화이트','레인룩'],
+ ['graysw','barrel','af1','흰색 크루','비 오는 날 데일리','레인룩'],
+ ['oxsolo','dkb','nb530','흰색 크루','비 오는 날 출근','레인룩'],
+ ['lmchood','dkb','af1','흰색 크루','비 오는 날 후드','레인룩'],
+ ['lac','dkb','jordan','흰색 크루','비 오는 날 단정하게','레인룩']
+];
+// 비 오는 날 판단: 직접 켠 경우, 또는 7~19시 강수확률 50% 이상
+let lastWx=null;
+const isRain = () => st.rain!=null ? st.rain : !!lastWx && (lastWx.dayPop??lastWx.pop)>=50;
+const RAIN_SHOE = {walla:-30,nb990:-15,chuck:-6,af1:3,jordan:3,nb530:2};
+const RAIN_BOT  = {raw:-6,khaki:-4,olive:-1,jean:-1,dkb:3,barrel:3};
 function candidates(){
   const pick=st.pick[st.mode];
-  const list=LOOKS.filter(l=>byId(l[0])&&byId(l[1])&&byId(l[2])).map(l=>({top:l[0],bot:l[1],sh:l[2],socks:l[3],name:l[4],style:l[5],curated:true}));
+  const list=(isRain()?LOOKS.concat(RAIN_LOOKS):LOOKS).filter(l=>byId(l[0])&&byId(l[1])&&byId(l[2])).map(l=>({top:l[0],bot:l[1],sh:l[2],socks:l[3],name:l[4],style:l[5],curated:true}));
   if(custom.some(c=>c.kind!=='outer')){
     for(const t of ofKind('top')) for(const b of ofKind('bottom')) for(const s of ofKind('shoe')){
       if(!(t.custom||b.custom||s.custom)) continue;
@@ -616,7 +636,12 @@ function score(l,wx){
   let sc=f*3+(l.curated?3:0)-colorPenalty([t.fam,b.fam,s.fam])+occScore(l);
   if(prevShoe()===l.sh) sc-=100;   // 규칙: 신발 2일 연속 금지
   if(f===0) sc-=8;
-  if((wx.dayPop??wx.pop)>=50&&s.suede){ sc-=20; notes.push(['w','비 예보 · 스웨이드는 젖으면 얼룩, 방수 스프레이 필수']); }
+  if(isRain()){
+    sc+=(RAIN_SHOE[s.id]??(s.suede?-30:0))+(RAIN_BOT[b.id]??0)+(t.dark?2:0)+(l.style==='레인룩'?3:0);
+    if(s.suede) notes.push(['w','비 오는 날 · 스웨이드는 젖으면 얼룩']);
+    if(s.id==='chuck') notes.push(['w','캔버스라 물웅덩이에 젖기 쉬움']);
+    if(b.id==='raw') notes.push(['w','생지는 젖으면 물빠짐이 심해서 신발·양말에 이염']);
+  }
   if(st.save&&s.precious) sc-=4;
   if(st.occ==='field'&&!t.dark){ sc-=5; notes.push(['w','밝은 상의라 소스가 튀면 바로 보임']); }
   if(st.occ==='field'&&t.dark) sc+=2;
@@ -646,6 +671,7 @@ function pickOuter(l,wx){
     if(o.id==='reebok'&&st.occ==='work') v-=2;
     if(o.id==='leather'&&(l.top==='filhood'||l.top==='lsw')) v+=2;
     if(o.id==='duffle'&&/옥스퍼드/.test(top.n)) v+=2;
+    if(isRain()){ if(o.id==='reebok') v+=4; if(o.id==='puffer'||o.id==='padshirt') v+=2; if(o.id==='duffle') v-=5; if(o.id==='leather') v-=2; }
     if(!NEUTRAL.has(o.fam)&&o.fam!=='brown'&&colorPenalty([o.fam,top.fam,b.fam,s.fam])>0) v-=3;
     if(v>bs){bs=v;best=o.id;}
   }
@@ -660,6 +686,7 @@ function belt(l,outer){
 }
 function build(){
   const wx=dayWeather();
+  lastWx=wx;
   const ranked=candidates().map(l=>({l,...score(l,wx)})).sort((a,b)=>b.sc-a.sc);
   const out=[],uT=new Set(),uO=new Set();
   const N=st.mode==='auto'?3:2, uB=new Set(), uS=new Set();
@@ -709,7 +736,14 @@ function renderToday(){
   $('ruleWarn').hidden=!warn;
   if(warn) $('ruleWarn').textContent=`${yl} 신은 신발이에요 (${byId(ps).n}). 2일 연속이라 다른 신발을 골라주세요.`;
 
-  const {wx,out}=build(); const f=n=>(n==null||isNaN(n))?'--':Math.round(n)+'°';
+  const {wx,out}=build();
+  const UMB='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12a9 9 0 0 1 18 0z"/><path d="M12 12v6a2 2 0 0 1-4 0"/></svg>';
+  const auto=(wx.dayPop??wx.pop)>=50;
+  $('rainBar').className='rainbar'+(isRain()?' on':'');
+  $('rainBar').innerHTML=isRain()
+    ?`<span class="rt">${UMB}${st.rain?'비 오는 날 코디로 보는 중':`비 예보 ${Math.round(wx.dayPop??wx.pop)}% · 비 오는 날 코디로 골랐어요`}</span><button type="button" data-rain="off">끄기</button>`
+    :`<span class="rt" style="color:var(--muted)">${UMB}${st.rain===false&&auto?'비 예보가 있지만 끈 상태':'비 소식 없음'}</span><button type="button" data-rain="on">비 오는 날 코디 보기</button>`;
+  const f=n=>(n==null||isNaN(n))?'--':Math.round(n)+'°';
   $('commuteT').textContent=f(wx.commute); $('tmin').textContent=f(wx.min); $('tmax').textContent=f(wx.max);
   $('pop').textContent=wx.pop==null?'--':Math.round(wx.pop)+'%'; $('wdesc').textContent=wx.desc;
   $('hours').innerHTML=wx.hours.map(h=>`<div class="h${h.h>=7&&h.h<=9?' cm':''}">${h.h}시<b>${Math.round(h.v)}°</b><i>${h.p>=20?h.p+'%':'&nbsp;'}</i></div>`).join('');
@@ -720,6 +754,7 @@ function renderToday(){
   $('looks').innerHTML=out.length?out.map((r,i)=>{
     const l=r.l,t=byId(l.top),b=byId(l.bot),s=byId(l.sh),oc=pickOuter(l,wx),o=oc.o?byId(oc.o):null,tips=[];
     if(t.how) tips.push(['',t.how]); if(b.tip) tips.push(['',b.tip]);
+    if(isRain()){ tips.push(['','우산 챙기기']); if(['jean','khaki','olive','raw'].includes(b.id)) tips.push(['','밑단 한 번 접기 · 물웅덩이에 젖지 않게']); }
     if(b.fam==='indigo'&&s.suede) tips.push(['','생지 이염 주의 · 밑단이 신발에 닿지 않게']);
     tips.push(['',oc.why+(o&&o.hi>=16?' · 앞은 열어서':'')]);
     if(st.occ==='field'&&o) tips.push(['','식사할 땐 아우터는 벗어두기']);
@@ -734,7 +769,7 @@ function renderToday(){
         <div class="b" style="${fill(b)}"></div><div class="s" style="${fill(s)}"></div>
       </div>
       <div class="look-body">
-        <div class="lh"><div><span class="style" style="--sc:${STYLE_HUE[l.style]||'#888'}">${esc(l.style)}</span><h3>${esc(l.name)}</h3></div><span class="badge ${badge[0]}">${badge[1]}</span></div>
+        <div class="lh"><div><span class="style${l.style==='레인룩'?' rain':''}" style="--sc:${STYLE_HUE[l.style]||'#2f6fb0'}">${esc(l.style)}</span><h3>${esc(l.name)}</h3></div><span class="badge ${badge[0]}">${badge[1]}</span></div>
         <dl class="list">${row('아우터',o)}${row('상의',t)}${row('바지',b)}${row('신발',s)}
           <div class="li"><dt>양말</dt><dd>${esc(l.socks)}</dd></div><div class="li"><dt>벨트</dt><dd>${esc(belt(l,oc.o))}</dd></div></dl>
         <ul class="tips">${tips.map(([c,x])=>`<li class="${c}">${esc(x)}</li>`).join('')}</ul>
@@ -887,6 +922,9 @@ $('closetBody').addEventListener('click',e=>{
 $('city').innerHTML=CITIES.map(c=>`<option>${c[0]}</option>`).join('');
 $('city').addEventListener('change',e=>{const c=CITIES.find(x=>x[0]===e.target.value); if(c) useCoords(c[1],c[2],c[0]);});
 $('locBtn').addEventListener('click',locate);
+$('rainBar').addEventListener('click',e=>{const b=e.target.closest('[data-rain]'); if(!b) return;
+  const auto=!!lastWx&&(lastWx.dayPop??lastWx.pop)>=50, want=b.dataset.rain==='on';
+  st.rain = want===auto ? null : want; render();});
 $('looks').addEventListener('click',e=>{
   const b=e.target.closest('[data-wear]'); if(!b) return; const i=+b.dataset.wear, l=lastOut[i]; if(!l) return;
   const k=dkey(st.day), cur=log[k];
