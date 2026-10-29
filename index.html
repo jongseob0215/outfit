@@ -601,6 +601,9 @@ function candidates(){
       list.push({top:t.id,bot:b.id,sh:s.id,socks:socksFor(s),name:'새 옷 조합',style:'새 조합',curated:false});
     }
   }
+  // 애매한 조합 제외: 바지·신발 궁합이 낮은 것, 어두운 상의 + 네이비 배럴(경계가 사라져 덩어리처럼 보임)
+  const ok=l=>{const t=byId(l.top),b=byId(l.bot),sh=byId(l.sh); return fit(b,sh)>=2 && !(t.dark&&b.id==='barrel');};
+  for(let i=list.length-1;i>=0;i--) if(!ok(list[i])) list.splice(i,1);
   if(st.mode==='auto') return list;
   return list.filter(l=>st.mode==='bottom'?l.bot===pick:l.sh===pick);
 }
