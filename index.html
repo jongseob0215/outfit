@@ -414,7 +414,7 @@ const BASE = [
  {id:'reebok',kind:'outer',n:'리복 트랙 재킷',c:'베이지·네이비',fam:'navy',lo:12,hi:21,hex:'#e2d6bd',hex2:'#25305a'},
  {id:'blouson',kind:'outer',n:'다크 브라운 블루종',fam:'brown',lo:9,hi:18},
  {id:'leather',kind:'outer',n:'도프제이슨 레더 재킷',fam:'black',lo:7,hi:16},
- {id:'padshirt',kind:'outer',n:'블랙 패디드 셔츠 재킷',fam:'black',lo:3,hi:12},
+ {id:'padshirt',kind:'outer',n:'다이아몬드 레이라 아웃포켓 재킷',c:'블랙',fam:'black',lo:8,hi:17},
  {id:'duffle',kind:'outer',n:'어반스터프 하프 더플',c:'차콜',fam:'gray',lo:-3,hi:9,hex:'#4a4d52'},
  {id:'puffer',kind:'outer',n:'블랙 숏패딩',fam:'black',lo:-20,hi:3}
 ];
@@ -671,7 +671,7 @@ function pickOuter(l,wx){
     if(o.id==='reebok'&&st.occ==='work') v-=2;
     if(o.id==='leather'&&(l.top==='filhood'||l.top==='lsw')) v+=2;
     if(o.id==='duffle'&&/옥스퍼드/.test(top.n)) v+=2;
-    if(isRain()){ if(o.id==='reebok') v+=4; if(o.id==='puffer'||o.id==='padshirt') v+=2; if(o.id==='duffle') v-=5; if(o.id==='leather') v-=2; }
+    if(isRain()){ if(o.id==='reebok') v+=4; if(o.id==='puffer') v+=2; if(o.id==='duffle') v-=5; if(o.id==='leather') v-=2; }
     if(!NEUTRAL.has(o.fam)&&o.fam!=='brown'&&colorPenalty([o.fam,top.fam,b.fam,s.fam])>0) v-=3;
     if(v>bs){bs=v;best=o.id;}
   }
