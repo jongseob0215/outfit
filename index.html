@@ -399,6 +399,7 @@ const BASE = [
  {id:'nb990',kind:'shoe',n:'뉴발란스 990',c:'그레이',fam:'gray',precious:true},
  {id:'nb530',kind:'shoe',n:'뉴발란스 530',c:'블랙',fam:'black',hex2:'#f4f4f2'},
  {id:'jordan',kind:'shoe',n:'조던 1 로우',c:'다크 파우더 블루',fam:'lightblue',hex2:'#1f2a46'},
+ {id:'peg',kind:'shoe',n:'나이키 페가수스 41 프리미엄',c:'애시 브라운',fam:'brown',hex:'#4a4440',hex2:'#b8a35a',mesh:true},
  {id:'oxgray',kind:'top',n:'옥스퍼드 + 그레이 스웨트',fam:'gray',w:2.2,hex:'#9a9fa6',hex2:'#f6f7f9',how:'셔츠 깃만 스웨트 밖으로'},
  {id:'oxgreen',kind:'top',n:'옥스퍼드 + 그린 스웨트',fam:'green',w:2.2,hex2:'#f6f7f9',how:'셔츠 깃만 스웨트 밖으로'},
  {id:'graysw',kind:'top',n:'그레이 래글런 스웨트',fam:'gray',w:2},
@@ -418,14 +419,14 @@ const BASE = [
  {id:'duffle',kind:'outer',n:'어반스터프 하프 더플',c:'차콜',fam:'gray',lo:-3,hi:9,hex:'#4a4d52'},
  {id:'puffer',kind:'outer',n:'블랙 숏패딩',fam:'black',lo:-20,hi:3}
 ];
-const PHOTO = {raw:'raw',jean:'jean',dkb:'dkb',olive:'olive',khaki:'khaki',chuck:'chuck',walla:'walla',af1:'af1',nb990:'nb990',nb530:'nb530',jordan:'jordan',
+const PHOTO = {raw:'raw',jean:'jean',dkb:'dkb',olive:'olive',khaki:'khaki',chuck:'chuck',walla:'walla',af1:'af1',nb990:'nb990',nb530:'nb530',jordan:'jordan',peg:'peg',
   oxgray:'graysw',oxgreen:'greensw',graysw:'graysw',greensw:'greensw',lmchood:'lmchood',filhood:'filhood',wafw:'wafw',wafb:'wafb',lsw:'lsw',lac:'lac',oxopen:'oxford',oxsolo:'oxford',
   reebok:'reebok',blouson:'blouson',barrel:'barrel',puffer:'puffer',leather:'leather',padshirt:'padshirt',duffle:'duffle'};
 BASE.forEach(b=>{ if(PHOTO[b.id]) b.img='img/'+PHOTO[b.id]+'.jpg'; });
 const FIT = {
-  jean:{chuck:3,nb990:2,walla:2,af1:3,nb530:2,jordan:2}, raw:{chuck:2,nb990:1,walla:3,af1:2,nb530:1,jordan:1},
-  dkb:{chuck:3,nb990:2,walla:0,af1:2,nb530:3,jordan:1}, olive:{chuck:2,nb990:1,walla:3,af1:0,nb530:0,jordan:0},
-  khaki:{chuck:3,nb990:1,walla:3,af1:3,nb530:1,jordan:0}, barrel:{chuck:1,nb990:3,walla:2,af1:2,nb530:2,jordan:3}
+  jean:{chuck:3,nb990:2,walla:2,af1:3,nb530:2,jordan:2,peg:2}, raw:{chuck:2,nb990:1,walla:3,af1:2,nb530:1,jordan:1,peg:2},
+  dkb:{chuck:3,nb990:2,walla:0,af1:2,nb530:3,jordan:1,peg:2}, olive:{chuck:2,nb990:1,walla:3,af1:0,nb530:0,jordan:0,peg:3},
+  khaki:{chuck:3,nb990:1,walla:3,af1:3,nb530:1,jordan:0,peg:3}, barrel:{chuck:1,nb990:3,walla:2,af1:2,nb530:2,jordan:3,peg:1}
 };
 const LOOKS = [
  ['lmchood','jean','chuck','흰색 크루','워크웨어'],['wafw','jean','chuck','흰색 크루','워크 재킷 룩'],
@@ -452,16 +453,20 @@ const LOOKS = [
  ['flannel','khaki','chuck','흰색 크루','플란넬 레이어드'],['flannel','jean','chuck','흰색 크루','플란넬 + 데님'],
  ['flannel','raw','walla','오트밀','플란넬 아메카지'],
  ['knit','raw','walla','오트밀','니트 + 생지'],['knit','olive','chuck','흰색 크루','니트 + 올리브'],
- ['knit','dkb','chuck','흰색 크루','니트 + 블랙 팬츠']
+ ['knit','dkb','chuck','흰색 크루','니트 + 블랙 팬츠'],
+ ['graysw','olive','peg','그레이','어스톤 러너'],['lmchood','khaki','peg','그레이','고프코어 캐주얼'],
+ ['greensw','khaki','peg','오트밀','아웃도어 캐주얼'],['wafw','olive','peg','오트밀','클린 어스톤'],
+ ['wafb','jean','peg','블랙·차콜','러너 데일리'],['lmchood','raw','peg','그레이','러너 + 생지']
 ];
 const STYLES = ['워크웨어','워크웨어','아메카지','클린 캐주얼','워크웨어','아메카지','아메카지','아메카지','클래식','프레피','아메카지',
  '아메리칸 캐주얼','워크웨어','클린 캐주얼','스트릿','원마일웨어','미니멀','시티보이','미니멀','스포티','미니멀','데일리','미니멀','미니멀',
  '클래식','미니멀','스트릿','프레피','스포티','클린 캐주얼','클린 캐주얼','클래식',
  '워크웨어','아메리칸 캐주얼','아메카지','클린 캐주얼','미니멀','스포티','아메카지','미니멀','아메카지',
- '아메리칸 캐주얼','아메리칸 캐주얼','아메카지','클래식','클래식','미니멀'];
+ '아메리칸 캐주얼','아메리칸 캐주얼','아메카지','클래식','클래식','미니멀',
+ '고프코어','고프코어','고프코어','미니멀','데일리','고프코어'];
 LOOKS.forEach((l,i)=>l[5]=STYLES[i]);
 const STYLE_HUE = {'워크웨어':'#8a5a2b','아메카지':'#2f4a75','아메리칸 캐주얼':'#a5452f','클린 캐주얼':'#3d7a8c','클래식':'#5b4b7a','프레피':'#2e6b4f',
- '스트릿':'#333','미니멀':'#6b7280','시티보이':'#7a6a2f','스포티':'#b5462f','원마일웨어':'#7d6b5d','데일리':'#5d6b7d','새 조합':'#888'};
+ '스트릿':'#333','미니멀':'#6b7280','시티보이':'#7a6a2f','스포티':'#b5462f','원마일웨어':'#7d6b5d','데일리':'#5d6b7d','고프코어':'#6b6a2a','새 조합':'#888'};
 const CITIES = [['서울',37.5665,126.978],['광명',37.4786,126.8646],['인천',37.4563,126.7052],['수원',37.2636,127.0286],
  ['대전',36.3504,127.3845],['광주',35.1595,126.8526],['대구',35.8714,128.6014],['부산',35.1796,129.0756]];
 const KIND = {top:'상의',bottom:'바지',shoe:'신발',outer:'아우터'};
@@ -590,7 +595,7 @@ const RAIN_LOOKS = [
 // 비 오는 날 판단: 직접 켠 경우, 또는 7~19시 강수확률 50% 이상
 let lastWx=null;
 const isRain = () => st.rain!=null ? st.rain : !!lastWx && (lastWx.dayPop??lastWx.pop)>=50;
-const RAIN_SHOE = {walla:-30,nb990:-15,chuck:-6,af1:3,jordan:3,nb530:2};
+const RAIN_SHOE = {walla:-30,nb990:-15,chuck:-6,af1:3,jordan:3,nb530:2,peg:-2};
 const RAIN_BOT  = {raw:-6,khaki:-4,olive:-1,jean:-1,dkb:3,barrel:3};
 function candidates(){
   const pick=st.pick[st.mode];
@@ -624,8 +629,8 @@ function occScore(l){
   if(t==='wtee'||t==='gtee') v+= o==='weekend'?4:o==='date'?3:o==='work'?3:0;
   if(t==='flannel') v+= o==='weekend'?4:2;
   if(o==='work'){ if(NEAT.has(t)) v+=4; if(t==='lmchood'||t==='filhood') v-=5; if(s.fam==='lightblue') v-=2; if(b==='barrel') v-=1; }
-  if(o==='field'){ if(s.suede) v-=4; if(['nb530','nb990','chuck'].includes(s.id)) v+=2; if(t==='lac'||t==='wafb') v+=2; }
-  if(o==='weekend'){ if(CASUAL.has(t)) v+=4; if(['af1','jordan','nb990','nb530'].includes(s.id)) v+=2; if(t==='lac') v-=2; }
+  if(o==='field'){ if(s.suede) v-=4; if(['nb530','nb990','chuck','peg'].includes(s.id)) v+=2; if(t==='lac'||t==='wafb') v+=2; }
+  if(o==='weekend'){ if(CASUAL.has(t)) v+=4; if(['af1','jordan','nb990','nb530','peg'].includes(s.id)) v+=2; if(t==='lac') v-=2; }
   if(o==='date'){ if(['oxgray','oxgreen','oxopen','oxsolo','wafw'].includes(t)) v+=4; if(t==='lmchood'||t==='filhood') v-=4; if(['walla','chuck','af1'].includes(s.id)) v+=2; if(b==='dkb'||b==='barrel') v-=2; }
   return v;
 }
