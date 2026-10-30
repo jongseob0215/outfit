@@ -73,6 +73,15 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .h.cm{background:rgb(255 255 255 / .12);opacity:1}
 .mset{border:1px solid rgb(255 255 255 / .35);background:rgb(255 255 255 / .1);color:inherit;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600}
 .mset[aria-pressed="true"]{background:rgb(255 255 255 / .92);color:#14203a}
+.slide{width:100%;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;gap:6px}
+.slide-top{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;opacity:.9}
+.slide-top b{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.slide input[type=range]{width:100%;max-width:100%;box-sizing:border-box;padding:0;margin:6px 0;-webkit-appearance:none;appearance:none;height:8px;border-radius:4px;
+  background:linear-gradient(90deg,#6aa7ff,#9fd3ff 30%,#ffe29a 60%,#ff9b6a);outline-offset:6px}
+.slide input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgb(0 0 0 / .35);cursor:grab}
+.slide input[type=range]::-moz-range-thumb{width:28px;height:28px;border:0;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgb(0 0 0 / .35)}
+.slide-ax{display:flex;justify-content:space-between;font-size:10px;opacity:.6}
+.slide-real{font-size:12px;opacity:.75}
 .manual{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px}
 .manual input{width:58px;padding:6px 8px;border-radius:8px;border:0;background:rgb(255 255 255 / .14);color:inherit}
 
@@ -270,11 +279,17 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
     </div>
     <div class="hours" id="hours"></div>
     <div class="manual" id="manualBox" hidden>
-      <span id="manualMsg">날씨를 못 불러왔어요</span>
-      <label>출근길 <input id="mCom" type="number" inputmode="numeric" value="8"></label>
-      <label>최저 <input id="mMin" type="number" inputmode="numeric" value="7"></label>
-      <label>최고 <input id="mMax" type="number" inputmode="numeric" value="15"></label>
-      <label>강수% <input id="mPop" type="number" inputmode="numeric" value="0"></label>
+      <div class="slide" id="slideBox" hidden>
+        <div class="slide-top"><span>평균 온도</span><b id="mAvgVal">--°</b></div>
+        <input type="range" id="mAvg" min="-15" max="35" step="1" value="12" aria-label="평균 온도">
+        <div class="slide-ax"><span>-15°</span><span>0°</span><span>10°</span><span>20°</span><span>35°</span></div>
+        <span class="slide-real" id="manualMsg"></span>
+      </div>
+      <span id="offMsg">날씨를 못 불러왔어요</span>
+      <label class="off">출근길 <input id="mCom" type="number" inputmode="numeric" value="8"></label>
+      <label class="off">최저 <input id="mMin" type="number" inputmode="numeric" value="7"></label>
+      <label class="off">최고 <input id="mMax" type="number" inputmode="numeric" value="15"></label>
+      <label class="off">강수% <input id="mPop" type="number" inputmode="numeric" value="0"></label>
       <select id="city" style="padding:6px 8px;border-radius:8px;border:0;background:rgb(255 255 255 / .14);color:inherit"></select>
     </div>
   </section>
@@ -562,9 +577,9 @@ function dayWeather(){
     return {min:mn,max:mx,pop:p,dayPop:p,commute:c===''?mn+1:+c,desc:'직접 입력',hours:[]}; }
   const real=realWeather();
   if(!st.manual) return real;
-  const c=$('mCom').value,mn=$('mMin').value,mx=$('mMax').value,p=$('mPop').value;
-  return {...real,real,commute:c===''?real.commute:+c,min:mn===''?real.min:+mn,max:mx===''?real.max:+mx,
-    pop:p===''?real.pop:+p,dayPop:p===''?real.dayPop:+p,desc:real.desc+' · 직접 설정'};
+  // 평균 온도 하나만 정하면 출근길·최저·최고가 같은 폭으로 움직인다
+  const d=+$('mAvg').value-(real.min+real.max)/2;
+  return {...real,real,commute:real.commute+d,min:real.min+d,max:real.max+d,desc:real.desc+' · 직접 설정'};
 }
 function realWeather(){
   const w=st.wx,d=st.day,date=w.daily.time[d];
@@ -756,7 +771,10 @@ function renderToday(){
 
   const {wx,out}=build();
   $('mToggle').setAttribute('aria-pressed',String(!!st.manual)); $('mToggle').textContent=st.manual?'자동으로':'직접 설정'; $('mToggle').hidden=!st.wx; $('city').hidden=!!st.wx;
-  $('manualMsg').textContent=st.wx?(wx.real?`실제 출근길 ${Math.round(wx.real.commute)}° · 최저 ${Math.round(wx.real.min)}° · 최고 ${Math.round(wx.real.max)}° → 내가 정한 온도로 추천`:''):'날씨를 못 불러왔어요';
+  $('slideBox').hidden=!(st.wx&&st.manual);
+  document.querySelectorAll('#manualBox .off,#offMsg').forEach(e=>e.hidden=!!st.wx);
+  if(wx.real){ $('mAvgVal').textContent=$('mAvg').value+'°';
+    $('manualMsg').textContent=`실제 평균 ${Math.round((wx.real.min+wx.real.max)/2)}° (최저 ${Math.round(wx.real.min)}° · 최고 ${Math.round(wx.real.max)}°) · 출근길 ${Math.round(wx.commute)}°로 계산`; }
   const UMB='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12a9 9 0 0 1 18 0z"/><path d="M12 12v6a2 2 0 0 1-4 0"/></svg>';
   const auto=(wx.dayPop??wx.pop)>=50;
   $('rainBar').className='rainbar'+(isRain()?' on':'');
@@ -969,10 +987,10 @@ $('rail').addEventListener('click',e=>{const b=e.target.closest('.tile'); if(!b)
 $('occ').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; st.occ=b.dataset.o; render();});
 $('sSave').checked=st.save; $('sSave').addEventListener('change',e=>{st.save=e.target.checked;render();});
 $('sHot').checked=st.hot; $('sHot').addEventListener('change',e=>{st.hot=e.target.checked;render();});
-['mCom','mMin','mMax','mPop'].forEach(id=>$(id).addEventListener('input',render));
+['mAvg','mCom','mMin','mMax','mPop'].forEach(id=>$(id).addEventListener('input',render));
 $('mToggle').addEventListener('click',()=>{
   if(!st.manual && st.wx){ const w=realWeather();
-    $('mCom').value=Math.round(w.commute); $('mMin').value=Math.round(w.min); $('mMax').value=Math.round(w.max); $('mPop').value=Math.round(w.pop??0); }
+    $('mAvg').value=Math.round((w.min+w.max)/2); }
   st.manual=!st.manual; $('manualBox').hidden=!st.manual&&!!st.wx; render(); });
 syncKind(); render(); locate();
 </script>
