@@ -71,6 +71,8 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .h b{display:block;font-size:15px;font-weight:600;margin:3px 0 1px;font-variant-numeric:tabular-nums}
 .h i{font-style:normal;font-size:10px;opacity:.75;color:#9fd0ff}
 .h.cm{background:rgb(255 255 255 / .12);opacity:1}
+.mset{border:1px solid rgb(255 255 255 / .35);background:rgb(255 255 255 / .1);color:inherit;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600}
+.mset[aria-pressed="true"]{background:rgb(255 255 255 / .92);color:#14203a}
 .manual{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px}
 .manual input{width:58px;padding:6px 8px;border-radius:8px;border:0;background:rgb(255 255 255 / .14);color:inherit}
 
@@ -256,7 +258,7 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
         <button type="button" id="d0" data-d="0">오늘</button>
         <button type="button" id="d1" data-d="1">내일</button>
       </div>
-      <span class="cond" id="wdesc"></span>
+      <div style="display:flex;gap:10px;align-items:center"><span class="cond" id="wdesc"></span><button type="button" class="mset" id="mToggle">직접 설정</button></div>
     </div>
     <div class="temp-row">
       <div><div class="temp" id="commuteT">--°</div><div class="temp-label">출근길 7–9시</div></div>
@@ -268,7 +270,8 @@ button{cursor:pointer;-webkit-tap-highlight-color:transparent}
     </div>
     <div class="hours" id="hours"></div>
     <div class="manual" id="manualBox" hidden>
-      <span>날씨를 못 불러왔어요</span>
+      <span id="manualMsg">날씨를 못 불러왔어요</span>
+      <label>출근길 <input id="mCom" type="number" inputmode="numeric" value="8"></label>
       <label>최저 <input id="mMin" type="number" inputmode="numeric" value="7"></label>
       <label>최고 <input id="mMax" type="number" inputmode="numeric" value="15"></label>
       <label>강수% <input id="mPop" type="number" inputmode="numeric" value="0"></label>
@@ -518,7 +521,7 @@ const all = () => BASE.concat(shopItems(), custom);
 const byId = id => all().find(x=>x.id===id);
 const ofKind = k => all().filter(x=>x.kind===k);
 const st = {
-  rain:null,
+  rain:null, manual:false,
   mode:store.get('mode2','auto'), pick:store.get('pick',{bottom:'jean',shoe:'chuck'}),
   day:new Date().getHours()>=18?1:0, occ:new Date().getDay()%6===0?'weekend':'work', save:store.get('save',true), hot:store.get('hot',true), wx:null
 };
@@ -527,7 +530,7 @@ const st = {
 const WMO = c => c===0?'맑음':c<=2?'구름 조금':c===3?'흐림':c<=48?'안개':c<=57?'이슬비':c<=67?'비':c<=77?'눈':c<=82?'소나기':c<=86?'눈 소나기':'뇌우';
 async function loadWeather(lat,lon){
   const u=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&hourly=temperature_2m,precipitation_probability&timezone=Asia%2FSeoul&forecast_days=2`;
-  try{ const r=await fetch(u); if(!r.ok) throw 0; st.wx=await r.json(); $('manualBox').hidden=true; }
+  try{ const r=await fetch(u); if(!r.ok) throw 0; st.wx=await r.json(); $('manualBox').hidden=!st.manual; }
   catch(e){ st.wx=null; $('manualBox').hidden=false; }
   render();
 }
@@ -555,8 +558,15 @@ function locate(){
     ()=>fallbackCity(), {timeout:8000,maximumAge:600000});
 }
 function dayWeather(){
-  if(!st.wx){ const mn=+$('mMin').value,mx=+$('mMax').value,p=+$('mPop').value;
-    return {min:mn,max:mx,pop:p,dayPop:p,commute:mn+1,desc:'직접 입력',hours:[]}; }
+  if(!st.wx){ const mn=+$('mMin').value,mx=+$('mMax').value,p=+$('mPop').value,c=$('mCom').value;
+    return {min:mn,max:mx,pop:p,dayPop:p,commute:c===''?mn+1:+c,desc:'직접 입력',hours:[]}; }
+  const real=realWeather();
+  if(!st.manual) return real;
+  const c=$('mCom').value,mn=$('mMin').value,mx=$('mMax').value,p=$('mPop').value;
+  return {...real,real,commute:c===''?real.commute:+c,min:mn===''?real.min:+mn,max:mx===''?real.max:+mx,
+    pop:p===''?real.pop:+p,dayPop:p===''?real.dayPop:+p,desc:real.desc+' · 직접 설정'};
+}
+function realWeather(){
   const w=st.wx,d=st.day,date=w.daily.time[d];
   const hours=w.hourly.time.map((t,i)=>({t,h:+t.slice(11,13),v:w.hourly.temperature_2m[i],p:w.hourly.precipitation_probability[i]})).filter(x=>x.t.startsWith(date));
   const cm=hours.filter(x=>x.h>=7&&x.h<=9);
@@ -745,6 +755,8 @@ function renderToday(){
   if(warn) $('ruleWarn').textContent=`${yl} 신은 신발이에요 (${byId(ps).n}). 2일 연속이라 다른 신발을 골라주세요.`;
 
   const {wx,out}=build();
+  $('mToggle').setAttribute('aria-pressed',String(!!st.manual)); $('mToggle').textContent=st.manual?'자동으로':'직접 설정'; $('mToggle').hidden=!st.wx; $('city').hidden=!!st.wx;
+  $('manualMsg').textContent=st.wx?(wx.real?`실제 출근길 ${Math.round(wx.real.commute)}° · 최저 ${Math.round(wx.real.min)}° · 최고 ${Math.round(wx.real.max)}° → 내가 정한 온도로 추천`:''):'날씨를 못 불러왔어요';
   const UMB='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12a9 9 0 0 1 18 0z"/><path d="M12 12v6a2 2 0 0 1-4 0"/></svg>';
   const auto=(wx.dayPop??wx.pop)>=50;
   $('rainBar').className='rainbar'+(isRain()?' on':'');
@@ -957,7 +969,11 @@ $('rail').addEventListener('click',e=>{const b=e.target.closest('.tile'); if(!b)
 $('occ').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; st.occ=b.dataset.o; render();});
 $('sSave').checked=st.save; $('sSave').addEventListener('change',e=>{st.save=e.target.checked;render();});
 $('sHot').checked=st.hot; $('sHot').addEventListener('change',e=>{st.hot=e.target.checked;render();});
-['mMin','mMax','mPop'].forEach(id=>$(id).addEventListener('input',render));
+['mCom','mMin','mMax','mPop'].forEach(id=>$(id).addEventListener('input',render));
+$('mToggle').addEventListener('click',()=>{
+  if(!st.manual && st.wx){ const w=realWeather();
+    $('mCom').value=Math.round(w.commute); $('mMin').value=Math.round(w.min); $('mMax').value=Math.round(w.max); $('mPop').value=Math.round(w.pop??0); }
+  st.manual=!st.manual; $('manualBox').hidden=!st.manual&&!!st.wx; render(); });
 syncKind(); render(); locate();
 </script>
 
